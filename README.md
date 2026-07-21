@@ -55,27 +55,33 @@ terraform apply
 - `vegas-gaming-pool` Flink compute pool (5 CFU)
 - All API keys and RBAC role bindings
 - Three Flink SQL statements (player_events table, player_risk_alerts table, risk detection job)
-- **Auto-writes `vegas/python/.env`** with all connection credentials
+- **Auto-writes `python/.env`** with all connection credentials
 
 ---
 
 ## Step 2 — Enable Real-time Context Engine (RTCE)
 
-RTCE exposes Kafka topics as an MCP endpoint that watsonx Orchestrate can query directly.
+RTCE exposes Kafka topics as a native MCP endpoint so watsonx Orchestrate can query
+live Kafka data without any custom integration code.
+
+> **Cluster tier requirement:** RTCE requires a **Standard or higher** Confluent Cloud
+> cluster. If the Terraform-provisioned `vegas-cluster` is Basic, upgrade it to Standard
+> in the Confluent Cloud UI before proceeding (Cluster settings → Edit → Upgrade).
 
 1. Open [confluent.cloud](https://confluent.cloud) → your environment → `vegas-cluster`
-2. In the left nav, go to **Topics**
-3. For **each** of the two topics below, open the topic → **Real-time Context Engine** tab → **Enable**:
+2. In the left nav go to **Topics**
+3. For **each** of the two topics, open the topic → **Real-time Context Engine** tab → click **Enable**:
    - `player_events`
    - `player_risk_alerts`
 
-Once enabled, both topics are served from the same cluster-level MCP endpoint:
+Once enabled, both topics are served from the **same** cluster-level MCP endpoint:
 
 ```
 https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>
 ```
 
-> Find your `ORG_ID`, `ENV_ID`, and `CLUSTER_ID` in the Confluent Cloud UI or from `terraform output`.
+> Copy this URL from the Confluent Cloud UI after enabling RTCE — you will need it in Step 5.
+> Your `ORG_ID`, `ENV_ID`, and `CLUSTER_ID` are embedded in the URL shown in the UI.
 
 ---
 
