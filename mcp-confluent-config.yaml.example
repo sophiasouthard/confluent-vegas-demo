@@ -1,0 +1,87 @@
+## mcp-confluent server configuration
+## https://github.com/confluentinc/mcp-confluent
+##
+## SETUP:
+##   cp mcp-confluent-config.yaml.example mcp-confluent-config.yaml
+##   Fill in the <PLACEHOLDER> values from your Confluent Cloud console or
+##   from `terraform output` after running vegas/terraform/.
+##
+## The real mcp-confluent-config.yaml is gitignored — never commit it.
+
+# =============================================================================
+# Step 1 — Register the Orchestrate connection (run once per environment)
+#
+#   orchestrate connections configure \
+#     -a confluent-cloud --env draft --type team --kind key_value
+#
+#   orchestrate connections set-credentials \
+#     -a confluent-cloud --env draft \
+#     -e "KAFKA_API_KEY=<KAFKA_API_KEY>" \
+#     -e "KAFKA_API_SECRET=<KAFKA_API_SECRET>"
+#
+# Step 2 — Register the RTCE MCP toolkit in Orchestrate
+#
+#   The RTCE endpoint is shown in the Confluent Cloud UI after you enable
+#   Real-time Context Engine on a topic:
+#     Topics → player_risk_alerts_v2 → Real-time Context Engine → Enable
+#   The endpoint format is:
+#     https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/
+#       organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>
+#
+#   orchestrate toolkits add \
+#     --kind mcp \
+#     --name player-risk-stream \
+#     --description "Confluent Cloud RTCE — Vegas gaming demo (player_risk_alerts_v2)" \
+#     --url "https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>" \
+#     --transport streamable_http \
+#     --tools "*" \
+#     --app-id confluent-cloud
+#
+#   ⚠️  The toolkit name MUST be "player-risk-stream" — this is the prefix used
+#       in player_risk_agent.agent.yaml (e.g. player-risk-stream:listTopics).
+#
+# Step 3 — Import the Python toolkit and agent
+#
+#   orchestrate tools import \
+#     --kind python \
+#     --file vegas/orchestrate/player_risk_toolkit/player_risk_actions.py \
+#     --package-root vegas/orchestrate/player_risk_toolkit \
+#     --requirements-file vegas/orchestrate/player_risk_toolkit/requirements.txt
+#
+#   orchestrate agents import -f vegas/orchestrate/player_risk_agent.agent.yaml
+#
+# IDs for this demo:
+#   ORG_ID:     4411d9ce-56ea-4759-8d90-eae75bab08d7
+#   ENV_ID:     env-vwq255   (vegas-gaming-env)
+#   CLUSTER_ID: lkc-57wwq6g  (vegas-cluster, AWS us-east-1)
+# =============================================================================
+
+connections:
+  # ---------------------------------------------------------------------------
+  # Vegas Gaming Demo — Confluent Cloud (provisioned by vegas/terraform/)
+  # Cluster: lkc-57wwq6g  |  Env: env-vwq255  |  Region: us-east-1
+  # ---------------------------------------------------------------------------
+  vegas-cloud:
+    type: confluent_cloud
+    description: "Confluent Cloud — Vegas gaming demo (Basic cluster, AWS us-east-1)"
+
+    kafka:
+      rest_endpoint: "https://<KAFKA_REST_ENDPOINT>:443"
+      cluster_id: "<CLUSTER_ID>"
+      auth:
+        type: api_key
+        key: "<KAFKA_API_KEY>"
+        secret: "<KAFKA_API_SECRET>"
+
+    schema_registry:
+      endpoint: "https://<SCHEMA_REGISTRY_ENDPOINT>"
+      auth:
+        type: api_key
+        key: "<SCHEMA_REGISTRY_API_KEY>"
+        secret: "<SCHEMA_REGISTRY_API_SECRET>"
+
+  # ---------------------------------------------------------------------------
+  # Add additional connections here following the same pattern.
+  # type: confluent_cloud  → Confluent Cloud clusters
+  # type: direct           → Self-managed / Confluent Platform clusters
+  # ---------------------------------------------------------------------------

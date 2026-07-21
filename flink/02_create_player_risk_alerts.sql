@@ -2,23 +2,21 @@
 -- Vegas Gaming Demo — Sub-Task 1 (Step 2 of 3)
 -- Sink Table: player_risk_alerts
 --
--- Upsert-keyed on (player_id, window_start) — one row per player per minute.
--- Mirrors the fraud_alerts DDL from the fraud demo.
+-- Append-only (no PRIMARY KEY) so the Confluent RTCE queryData tool can read it.
+-- Flink writes one row per player per 1-minute window close.
 --
 -- Run after 01_create_player_events.sql.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS player_risk_alerts (
-  player_id      STRING,                  -- PRIMARY KEY col FIRST
-  window_start   TIMESTAMP(3),            -- PRIMARY KEY col second
+CREATE TABLE IF NOT EXISTS player_risk_alerts_v2 (
+  player_id      STRING,
+  window_start   TIMESTAMP(3),
   window_end     TIMESTAMP(3),
   bet_count      BIGINT,
   total_wagered  DECIMAL(18, 2),
   avg_bet        DECIMAL(18, 2),
-  is_flagged     BOOLEAN,                 -- true if bet_count > 20 OR total_wagered > 10000
-  PRIMARY KEY (player_id, window_start) NOT ENFORCED
+  is_flagged     BOOLEAN                  -- true if bet_count > 20 OR total_wagered > 10000
 ) WITH (
-  'key.format'                     = 'json-registry',
   'value.format'                   = 'json-registry',
   'kafka.consumer.isolation-level' = 'read-uncommitted'
 );

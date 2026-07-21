@@ -14,7 +14,7 @@
 -- This statement is long-running — Flink status should show RUNNING.
 -- =============================================================================
 
-INSERT INTO player_risk_alerts
+INSERT INTO player_risk_alerts_v2
 SELECT
   player_id,
   window_start,

@@ -13,7 +13,7 @@ Python producer
     ▼
 Confluent Cloud
     ├── Apache Flink SQL
-    │       1-min tumbling window → player_risk_alerts (Kafka topic)
+    │       1-min tumbling window → player_risk_alerts_v2 (Kafka topic)
     └── Real-time Context Engine (RTCE)
             MCP endpoint → watsonx Orchestrate
                                 │
@@ -55,33 +55,27 @@ terraform apply
 - `vegas-gaming-pool` Flink compute pool (5 CFU)
 - All API keys and RBAC role bindings
 - Three Flink SQL statements (player_events table, player_risk_alerts table, risk detection job)
-- **Auto-writes `python/.env`** with all connection credentials
+- **Auto-writes `vegas/python/.env`** with all connection credentials
 
 ---
 
 ## Step 2 — Enable Real-time Context Engine (RTCE)
 
-RTCE exposes Kafka topics as a native MCP endpoint so watsonx Orchestrate can query
-live Kafka data without any custom integration code.
-
-> **Cluster tier requirement:** RTCE requires a **Standard or higher** Confluent Cloud
-> cluster. If the Terraform-provisioned `vegas-cluster` is Basic, upgrade it to Standard
-> in the Confluent Cloud UI before proceeding (Cluster settings → Edit → Upgrade).
+RTCE exposes Kafka topics as an MCP endpoint that watsonx Orchestrate can query directly.
 
 1. Open [confluent.cloud](https://confluent.cloud) → your environment → `vegas-cluster`
-2. In the left nav go to **Topics**
-3. For **each** of the two topics, open the topic → **Real-time Context Engine** tab → click **Enable**:
+2. In the left nav, go to **Topics**
+3. For **each** of the two topics below, open the topic → **Real-time Context Engine** tab → **Enable**:
    - `player_events`
-   - `player_risk_alerts`
+   - `player_risk_alerts_v2`
 
-Once enabled, both topics are served from the **same** cluster-level MCP endpoint:
+Once enabled, both topics are served from the same cluster-level MCP endpoint:
 
 ```
 https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>
 ```
 
-> Copy this URL from the Confluent Cloud UI after enabling RTCE — you will need it in Step 5.
-> Your `ORG_ID`, `ENV_ID`, and `CLUSTER_ID` are embedded in the URL shown in the UI.
+> Find your `ORG_ID`, `ENV_ID`, and `CLUSTER_ID` in the Confluent Cloud UI or from `terraform output`.
 
 ---
 
@@ -147,8 +141,8 @@ orchestrate connections set-credentials \
 # 3. Register the RTCE MCP toolkit
 orchestrate toolkits add \
   --kind mcp \
-  --name confluent \
-  --description "Confluent Cloud — Vegas gaming demo" \
+  --name player-risk-stream \
+  --description "Confluent Cloud RTCE — Vegas gaming demo (player_risk_alerts_v2)" \
   --url "https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>" \
   --transport streamable_http \
   --tools "*" \
@@ -182,7 +176,7 @@ Open the watsonx Orchestrate chat UI and try these prompts:
 
 **Prove the data is live:**
 ```
-List all players currently flagged in the player_risk_alerts stream
+List all players currently flagged in the player_risk_alerts_v2 stream
 ```
 
 **High risk investigation:**
@@ -212,7 +206,8 @@ What is the risk status of PLAYER-NORMAL-01?
 | Producer connects but no alerts appear | Wait for the 1-minute tumbling window to close |
 | `SASL authentication failed` | API key may be deleted; run `terraform apply` again to regenerate |
 | `Session terminated` 502 on toolkit add | RTCE not enabled on topics — complete Step 2 first |
-| `No tools found with the name 'confluent:...'` | Toolkit registered with wrong URL or RTCE not initialised — re-run Step 5 |
+| `MT_UPSERT_NOT_SUPPORTED` on queryData | Topic is compacted — delete and recreate `player_risk_alerts_v2` without a PRIMARY KEY, then restart the Flink job |
+| `No tools found with the name 'player-risk-stream:...'` | Toolkit registered with wrong name or URL — re-run Step 5 with `--name player-risk-stream` |
 | `No tools found with the name 'flag_player'` | Python tools not imported yet — run Step 6 toolkit import first |
 
 ---
@@ -222,7 +217,7 @@ What is the risk status of PLAYER-NORMAL-01?
 ```bash
 # Delete messages from both topics via Confluent Cloud UI:
 # Topics → player_events → Actions → Delete all messages
-# Topics → player_risk_alerts → Actions → Delete all messages
+# Topics → player_risk_alerts_v2 → Actions → Delete all messages
 
 # Or destroy and re-apply for a completely clean slate:
 cd vegas/terraform

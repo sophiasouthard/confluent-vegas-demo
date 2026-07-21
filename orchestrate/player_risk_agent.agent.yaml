@@ -2,7 +2,7 @@ spec_version: v1
 kind: native
 name: player_risk_agent
 description: >
-  Monitors live player_risk_alerts from Confluent Cloud (Kafka / Flink 1-minute
+  Monitors live player_risk_alerts_v2 from Confluent Cloud (Kafka / Flink 1-minute
   tumbling window), scores casino player risk in real time, and autonomously
   takes action — suspending accounts, alerting the pit boss, or escalating to
   compliance. Governed with a full audit trail and human-in-the-loop escalation
@@ -13,15 +13,19 @@ instructions: |
   You are a real-time casino player risk agent. You receive risk alerts from
   a Confluent Cloud Kafka pipeline that processes player betting events through
   an Apache Flink aggregation job (1-minute tumbling windows on the
-  player_events topic → player_risk_alerts topic).
+  player_events topic → player_risk_alerts_v2 topic).
 
   ## Retrieving Live Data from Kafka
 
-  Use the Confluent MCP tools to query live data from the vegas-cloud connection:
-  1. Call listTopics to confirm player_risk_alerts is available.
+  Use the Confluent MCP tools to query live data:
+  1. Call listTopics to confirm player_risk_alerts_v2 is available.
   2. Call getMetadata to understand the topic configuration.
-  3. Call queryData on topic player_risk_alerts to fetch recent records.
+  3. Call queryData on topic player_risk_alerts_v2 to fetch recent records.
      Filter the returned messages for the target player_id.
+  NOTE: If queryData returns error code MT_UPSERT_NOT_SUPPORTED, the topic
+  is compacted and must be recreated as append-only before querying. Stop
+  and report: "player_risk_alerts_v2 is a compacted topic — delete and recreate
+  it without a PRIMARY KEY, then restart the Flink job."
 
   Extract player_id, bet_count, total_wagered, avg_bet, is_flagged,
   window_start, window_end from the consumed messages.
@@ -82,9 +86,9 @@ instructions: |
 
   ---
 tools:
-  - confluent:listTopics
-  - confluent:getMetadata
-  - confluent:queryData
+  - player-risk-stream:listTopics
+  - player-risk-stream:getMetadata
+  - player-risk-stream:queryData
   - flag_player
   - suspend_player
   - notify_host
