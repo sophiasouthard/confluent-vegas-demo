@@ -1,0 +1,21 @@
+# Python virtual environments
+python/.venv/
+orchestrate/player_risk_toolkit/__pycache__/
+python/__pycache__/
+*.pyc
+*.pyo
+
+# Secrets — never commit
+python/.env
+cflt-vsi-key.pem
+
+# Terraform secrets and state
+terraform/terraform.tfvars
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+
+# Generated sample data (timestamps stale after each run)
+python/player_events_sample.json
+vegas-gaming-demo-plan.md

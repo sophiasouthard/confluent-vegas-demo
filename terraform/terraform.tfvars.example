@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to source control — it contains secrets.
+
+api_key    = "YOUR_CONFLUENT_CLOUD_API_KEY"
+api_secret = "YOUR_CONFLUENT_CLOUD_API_SECRET"
+
+environment_name = "vegas-gaming-env"
+cluster_name     = "vegas-cluster"
+region           = "us-east-1"
+cloud_provider   = "AWS"
+flink_max_cfu    = 5
