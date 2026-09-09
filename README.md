@@ -51,31 +51,39 @@ terraform apply
 
 `terraform apply` creates:
 - `vegas-gaming-env` environment with Stream Governance (Essentials)
-- `vegas-cluster` Basic Kafka cluster (AWS us-east-1)
+- `vegas-cluster` Standard Kafka cluster (AWS us-east-1)
 - `vegas-gaming-pool` Flink compute pool (5 CFU)
 - All API keys and RBAC role bindings
 - Three Flink SQL statements (player_events table, player_risk_alerts table, risk detection job)
-- **Auto-writes `vegas/python/.env`** with all connection credentials
+- **RTCE enabled on `player_events` and `player_risk_alerts_v2`** — no UI step needed
+- **Auto-writes `python/.env`** with all connection credentials
+
+> **Cluster tier:** RTCE requires a **Standard** cluster or higher. The Terraform config
+> provisions Standard by default. Do not downgrade to Basic or RTCE will be unavailable.
 
 ---
 
-## Step 2 — Enable Real-time Context Engine (RTCE)
+## Step 2 — Get the RTCE MCP Endpoint
 
-RTCE exposes Kafka topics as an MCP endpoint that watsonx Orchestrate can query directly.
+RTCE is enabled automatically by `terraform apply` — no Confluent Cloud UI step required.
 
-1. Open [confluent.cloud](https://confluent.cloud) → your environment → `vegas-cluster`
-2. In the left nav, go to **Topics**
-3. For **each** of the two topics below, open the topic → **Real-time Context Engine** tab → **Enable**:
-   - `player_events`
-   - `player_risk_alerts_v2`
+Both topics (`player_events` and `player_risk_alerts_v2`) are wired up via the
+`confluent_rtce_rtce_topic` Terraform resource and will show as **On** in the
+Confluent Cloud UI once provisioning completes (~1–2 min).
 
-Once enabled, both topics are served from the same cluster-level MCP endpoint:
+Retrieve the MCP endpoint URL by running:
 
+```bash
+cd terraform
+
+ORG_ID=$(terraform output -raw organization_id)
+ENV_ID=$(terraform output -raw environment_id)
+CLUSTER_ID=$(terraform output -raw cluster_id)
+
+echo "https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/${ORG_ID}/environments/${ENV_ID}/kafka-clusters/${CLUSTER_ID}"
 ```
-https://mcp.us-east-1.aws.confluent.cloud/mcp/v1/context-engine/organizations/<ORG_ID>/environments/<ENV_ID>/kafka-clusters/<CLUSTER_ID>
-```
 
-> Find your `ORG_ID`, `ENV_ID`, and `CLUSTER_ID` in the Confluent Cloud UI or from `terraform output`.
+Copy the printed URL — you will need it in Step 5.
 
 ---
 
@@ -205,7 +213,7 @@ What is the risk status of PLAYER-NORMAL-01?
 | Flink job stuck in PROVISIONING | Normal — takes ~2 min on first run; refresh the Confluent Cloud UI |
 | Producer connects but no alerts appear | Wait for the 1-minute tumbling window to close |
 | `SASL authentication failed` | API key may be deleted; run `terraform apply` again to regenerate |
-| `Session terminated` 502 on toolkit add | RTCE not enabled on topics — complete Step 2 first |
+| `Session terminated` 502 on toolkit add | RTCE not yet ready — wait 1–2 min after `terraform apply` and retry; or check that the cluster is Standard tier (not Basic) |
 | `MT_UPSERT_NOT_SUPPORTED` on queryData | Topic is compacted — delete and recreate `player_risk_alerts_v2` without a PRIMARY KEY, then restart the Flink job |
 | `No tools found with the name 'player-risk-stream:...'` | Toolkit registered with wrong name or URL — re-run Step 5 with `--name player-risk-stream` |
 | `No tools found with the name 'flag_player'` | Python tools not imported yet — run Step 6 toolkit import first |

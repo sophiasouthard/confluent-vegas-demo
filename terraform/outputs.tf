@@ -1,3 +1,8 @@
+output "organization_id" {
+  description = "Confluent Cloud organization ID"
+  value       = data.confluent_organization.main.id
+}
+
 output "environment_id" {
   description = "Confluent Cloud environment ID"
   value       = confluent_environment.main.id

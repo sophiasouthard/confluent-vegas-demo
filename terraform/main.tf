@@ -35,7 +35,8 @@ resource "confluent_kafka_cluster" "main" {
   cloud        = var.cloud_provider
   region       = var.region
 
-  basic {}
+  # Standard tier required for Real-Time Context Engine (RTCE)
+  standard {}
 
   environment {
     id = confluent_environment.main.id
@@ -343,6 +344,48 @@ resource "confluent_flink_statement" "player_risk_detection_job" {
   depends_on = [
     confluent_flink_statement.create_player_risk_alerts,
   ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Real-Time Context Engine (RTCE)
+# Exposes both topics as MCP tools so AI agents can query live Kafka data.
+# Requires a Standard-tier cluster or higher.
+# ─────────────────────────────────────────────────────────────────────────────
+
+resource "confluent_rtce_rtce_topic" "player_events" {
+  cloud       = var.cloud_provider
+  region      = var.region
+  description = "Vegas gaming demo — raw player betting events"
+
+  environment {
+    id = confluent_environment.main.id
+  }
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.main.id
+  }
+
+  topic_name = "player_events"
+
+  depends_on = [confluent_flink_statement.create_player_events]
+}
+
+resource "confluent_rtce_rtce_topic" "player_risk_alerts" {
+  cloud       = var.cloud_provider
+  region      = var.region
+  description = "Vegas gaming demo — 1-min windowed player risk alerts (flagged players)"
+
+  environment {
+    id = confluent_environment.main.id
+  }
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.main.id
+  }
+
+  topic_name = "player_risk_alerts_v2"
+
+  depends_on = [confluent_flink_statement.create_player_risk_alerts]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
